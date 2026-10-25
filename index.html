@@ -379,7 +379,7 @@ function loadDB(){
       { const s = d.settings || {};
         d.settings = {rates: Object.assign({}, DEFAULT_SETTINGS.rates, s.debrisRate ? {debris: s.debrisRate} : {}, s.rates || {})}; }
       // Admins immer als Besitzer führen
-      Object.keys(d.users).forEach(k => { const n = ownerName(k); if(n){ d.users[k].role = "owner"; d.users[k].name = n; } });
+      Object.keys(d.users).forEach(k => { const n = ownerName(k); if(n){ d.users[k].role = "owner"; d.users[k].name = n; } else if(d.users[k].role !== "user"){ d.users[k].role = "user"; } });
       return d;
     }
   }catch(e){}
@@ -406,7 +406,7 @@ const altPrices = dias => CUR_KEYS.map(k => `<b>${payAmt(k, dias)}</b> ${CURRENC
 
 /* ---------- Hilfsfunktionen ---------- */
 function me(){ return session ? db.users[session] || null : null; }
-function canEdit(){ const u = me(); return !!u && (u.role === "owner" || u.role === "manager"); }
+function canEdit(){ return isOwner(); }   // Verwaltung nur für die Admins in OWNERS
 function isOwner(){ const u = me(); return !!u && u.role === "owner"; }
 
 function toast(msg, err){
@@ -580,7 +580,7 @@ function addCode(){
 function toggleCode(c){ if(!isOwner()) return; db.codes[c].active = !db.codes[c].active; saveDB(); render(); }
 function delCode(c){ if(!isOwner()) return; delete db.codes[c]; if(state.appliedCode===c) state.appliedCode=null; saveDB(); render(); }
 function setRole(key, role){
-  if(!isOwner()) return toast("Nur Admins dürfen Rechte vergeben.", true);
+  return toast("Rechte werden nicht vergeben – nur JuKroCraft und Freshbacon22 haben die Verwaltung.", true);
   const u = db.users[key]; if(!u || u.role === "owner") return;
   u.role = role; saveDB(); toast(u.name + " ist jetzt " + (role==="manager"?"Manager":"Spieler") + "."); render();
 }
@@ -864,18 +864,6 @@ function viewAdmin(){
     </div>`;
   if(isOwner()){
     html += `
-    <div class="panel"><h2>Rechte vergeben (nur Admins)</h2>
-      <p class="muted" style="margin-top:0">Manager dürfen Preise ändern und Rabattcodes erstellen. Nur Admins (${OWNERS.map(esc).join(", ")}) können Rechte vergeben.</p>
-      <div class="row"><div><label>Minecraft-Name (muss registriert sein)</label><input type="text" id="gName"></div>
-      <div style="flex:0"><button class="btn orange" onclick="grantByName()">Zum Manager machen</button></div></div><br>
-      <table><tr><th>Spieler</th><th>Rolle</th><th></th></tr>
-      ${Object.keys(db.users).map(k=>{const u=db.users[k];return `<tr>
-        <td><span class="acct">${avatar(u.name,24)} ${esc(u.name)}</span></td><td>${roleBadge(u.role)}</td>
-        <td>${u.role==="owner" ? "" : u.role==="manager"
-          ? `<button class="btn red small" onclick="setRole('${k}','user')">Recht entziehen</button>`
-          : `<button class="btn small" onclick="setRole('${k}','manager')">Zum Manager</button>`}</td></tr>`}).join("")}
-      </table>
-    </div>
     <div class="panel"><h2>Benachrichtigung bei Bestellungen</h2>
       <p class="muted" style="margin-top:0">Discord-Webhook: Kanal ⚙️ → Integrationen → Webhooks → Neuer Webhook → URL kopieren. Hier einfügen, testen und den Code für die Datei erzeugen.</p>
       <label>Webhook-URL</label>
